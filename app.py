@@ -2,6 +2,8 @@ import streamlit as st
 
 st.title("챗봇 연습중임...")
 
+#테스트
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
