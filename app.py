@@ -2,10 +2,10 @@ import streamlit as st
 
 st.title("챗봇 연습중임...")
 
-#테스트
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
 
 for message in st.session_state.messages:
     # with : 해당 블록 안에서 실행
@@ -18,8 +18,10 @@ if prompt := st.chat_input("Ask me anything!"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    response = f"Echo: {prompt}"
+    response = f"{prompt}"
 
-    with st.chat_message("assistant"):
+    with st.chat_message("bubbles"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
+
