@@ -3,7 +3,7 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 
-model = ChatOpenAI(model="gpt-4o-mini",api_key=st.secrets["OPENAI_KEY"]
+model = ChatOpenAI(model="gpt-4o-mini",api_key=st.secrets["OPENAI_KEY"])
 
 st.title("gpt bot")
 
