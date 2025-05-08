@@ -1,3 +1,6 @@
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import base64
 from io import BytesIO
 import streamlit as st
@@ -8,11 +11,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 import chromadb
-import uuid
-from time import sleep
-from chromadb.config import Settings
-import os
-import shutil
+import pysqlite3 as sqlite3
 
 # 설정 및 상수
 PERSIST_DIRECTORY = "./chroma_db"
