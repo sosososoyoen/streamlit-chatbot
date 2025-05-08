@@ -5,10 +5,14 @@ from PIL import Image
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.documents import Document
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
 import chromadb
-
+import uuid
+from time import sleep
+from chromadb.config import Settings
+import os
+import shutil
 
 # 설정 및 상수
 PERSIST_DIRECTORY = "./chroma_db"
@@ -24,8 +28,8 @@ DEFAULT_SYSTEM_MESSAGE = (
 model = ChatOpenAI(model="gpt-4o-mini", api_key=st.secrets["OPENAI_KEY"])
 embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
 
-# 함수 정의
 
+# 함수 정의
 def images_to_docs(images: list) -> list[Document]:
     docs = []
     for image in images:
@@ -33,45 +37,37 @@ def images_to_docs(images: list) -> list[Document]:
         buffered = BytesIO()
         img.save(buffered, format=img.format)
         image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        docs.append(Document(page_content=f"data:image/{img.format.lower()};base64,{image_base64}"))
+        docs.append(Document(
+            page_content=f"data:image/{img.format.lower()};base64,{image_base64}",
+        ))
     return docs
 
-
-def init_vectorstore(docs) -> Chroma:
-    client = chromadb.PersistentClient(path="./chroma_db")
-    if client:
-        client.delete_collection(name="img_db")
-    vectorstore = Chroma.from_documents(
-        documents=docs,
-        embedding=embeddings,
-        collection_name="img_db",
-        persist_directory="./chroma_db"
-    )
-    return vectorstore
-
 def get_vectorstore() -> Chroma:
-    client = chromadb.PersistentClient(path="./chroma_db")
+    client = chromadb.EphemeralClient()
     return Chroma(
         client=client,
-        collection_name="img_db",
+        collection_name=COLLECTION_NAME,
         embedding_function=embeddings
     )
 
 def format_docs(_docs):
     return [doc.page_content for doc in _docs]
 
-
+def on_files_change():
+    st.session_state.uploader_key += 1
 
 # Streamlit UI
 
 st.title("📷 이미지 기반 QA RAG 봇")
 st.caption("🚀 업로드한 이미지를 기반으로 답변이 생성됩니다.")
-
+vectordb = get_vectorstore()
 # 이미지 업로드 및 벡터스토어 초기화
-if images := st.file_uploader("이미지를 업로드해주세요.", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True):
-    current_docs = images_to_docs(images)
-    init_vectorstore(current_docs)
-    
+if images := st.file_uploader("이미지를 업로드해주세요.",type=['png', 'jpg', 'jpeg'], accept_multiple_files=True):
+    with st.spinner("이미지를 벡터스토어에 추가하는 중..."):
+        current_docs = images_to_docs(images)
+        vectordb.add_documents(current_docs)
+        
+        
     for image in images:
         st.image(image)
  
@@ -92,6 +88,7 @@ for message in st.session_state.messages:
 
 # 사용자 입력 처리
 if prompt := st.chat_input("메세지를 입력해주세요."):
+    
     with st.chat_message("user"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -99,7 +96,6 @@ if prompt := st.chat_input("메세지를 입력해주세요."):
     try:
         # 벡터스토어에서 관련 문서 검색
         msgs = []
-        vectordb = get_vectorstore()
         retriever = vectordb.as_retriever()
         docs = retriever.get_relevant_documents(prompt)
         formatted_docs = format_docs(docs)
