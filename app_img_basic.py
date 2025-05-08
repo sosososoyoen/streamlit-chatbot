@@ -43,7 +43,7 @@ def images_to_docs(images: list) -> list[Document]:
     return docs
 
 def get_vectorstore() -> Chroma:
-    client = chromadb.EphemeralClient()
+    client = chromadb.Client()
     client.clear_system_cache()
     return Chroma(
         client=client,
