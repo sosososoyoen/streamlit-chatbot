@@ -13,7 +13,9 @@ from langchain_community.vectorstores import Chroma
 import chromadb
 import pysqlite3 as sqlite3
 
+
 # 설정 및 상수
+chromadb.api.client.SharedSystemClient.clear_system_cache()
 PERSIST_DIRECTORY = "./chroma_db"
 COLLECTION_NAME = "img_db"
 OPENAI_API_KEY = st.secrets["OPENAI_KEY"]
