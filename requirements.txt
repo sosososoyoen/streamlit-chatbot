@@ -10,3 +10,4 @@ langchain_text_splitters==0.3.8
 langgraph==0.4.2
 Pillow==11.2.1
 streamlit==1.45.0
+pysqlite3-binary==0.5.4
