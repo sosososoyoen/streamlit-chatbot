@@ -8,7 +8,7 @@ st.title("🎠 Echo Home")
 
 if "messages" not in st.session_state:
     st.session_state.home_messages = [
-        {"role": "assistant", "content": "이 곳은 streamlit 연습용 챗봇입니다."}
+        {"role": "assistant", "content": "이 곳은 streamlit 연습용 챗봇입니다. api 키를 입력해주세요."}
     ]
 
 
