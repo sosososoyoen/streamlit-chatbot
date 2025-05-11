@@ -12,6 +12,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 import chromadb
 import pysqlite3 as sqlite3
+from utils.sidebar import sidebar
+
 
 
 # 설정 및 상수
@@ -23,10 +25,18 @@ DEFAULT_SYSTEM_MESSAGE = (
     "아래 이미지를 꼼꼼히 살펴본 뒤, 이미지 속 주요 사물·색상·구성 요소를 간결하게 요약해줘. "
     "필요하면 이미지에 있는 텍스트(간판·문구 등)도 뽑아내고, 배경·분위기도 함께 설명해줘."
 )
+sidebar()
 
+
+st.title("📷 이미지 기반 QA RAG 봇")
+st.caption("🚀 업로드한 이미지를 기반으로 답변이 생성됩니다.")
+openai_api_key = st.session_state.get("chatbot_api_key", "")  
+if not openai_api_key:
+    st.info("OpenAI API 키를 입력해주세요.")
+    st.stop()
 # 초기화
-model = ChatOpenAI(model="gpt-4o-mini", api_key=st.secrets["OPENAI_KEY"])
-embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
+model = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
+embeddings = OpenAIEmbeddings(api_key=openai_api_key)
 
 
 # 함수 정의
@@ -58,9 +68,6 @@ def on_files_change():
     st.session_state.uploader_key += 1
 
 # Streamlit UI
-
-st.title("📷 이미지 기반 QA RAG 봇")
-st.caption("🚀 업로드한 이미지를 기반으로 답변이 생성됩니다.")
 vectordb = get_vectorstore()
 # 이미지 업로드 및 벡터스토어 초기화
 if images := st.file_uploader("이미지를 업로드해주세요.",type=['png', 'jpg', 'jpeg'], accept_multiple_files=True):
@@ -75,13 +82,13 @@ if images := st.file_uploader("이미지를 업로드해주세요.",type=['png',
     
 # 메시지 상태 초기화
 if "messages" not in st.session_state:
-    st.session_state.messages = [
+    st.session_state.basic_messages = [
         SystemMessage(content="너는 이미지를 전문적으로 분석하는 AI 어시스턴트야. 아래 이미지를 꼼꼼히 살펴본 뒤, 이미지 속 주요 사물·색상·구성 요소를 간결하게 요약해줘. 필요하면 이미지에 있는 텍스트(간판·문구 등)도 뽑아내고, 배경·분위기도 함께 설명해줘.")
     ]
 
 
 # 기존 메시지 렌더링
-for message in st.session_state.messages:
+for message in st.session_state.basic_messages:
     if isinstance(message, SystemMessage):
         continue
     with st.chat_message(message["role"]):
@@ -92,7 +99,7 @@ if prompt := st.chat_input("메세지를 입력해주세요."):
     
     with st.chat_message("user"):
         st.markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.basic_messages.append({"role": "user", "content": prompt})
     
     try:
         # 벡터스토어에서 관련 문서 검색
@@ -102,7 +109,7 @@ if prompt := st.chat_input("메세지를 입력해주세요."):
         formatted_docs = format_docs(docs)
         img_msgs = [{"role": "user", "content": []}]
 
-        for msg in st.session_state.messages:
+        for msg in st.session_state.basic_messages:
             if isinstance(msg, SystemMessage):
                 msgs.append(msg)
             elif msg["role"] == "user":
@@ -122,7 +129,7 @@ if prompt := st.chat_input("메세지를 입력해주세요."):
 
         with st.chat_message("assistant"):
             result = model.invoke(msgs + img_msgs)
-            st.session_state.messages.append({"role": "assistant", "content": result.content})
+            st.session_state.basic_messages.append({"role": "assistant", "content": result.content})
             response = result.content
             st.markdown(response)
     except Exception as e:

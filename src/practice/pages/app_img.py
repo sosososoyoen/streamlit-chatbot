@@ -9,16 +9,14 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from utils.sidebar import sidebar
 
 
 # 설정 및 상수
 if "enable_search" not in st.session_state:
-    st.session_state.enable_search = False
-with st.sidebar:
-    openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
-    "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
-    "[View the source code](https://github.com/sosososoyoen/streamlit-chatbot)"
-
+    st.session_state.enable_search = False  
+sidebar()
+openai_api_key = st.session_state.get("chatbot_api_key", "")
 
 query_template = PromptTemplate.from_template("""
 당신은 패션 스타일 전문 AI 어시스턴트입니다. 이미지 설명을 보고 그 사람에게 어울리는 스타일을 추천해주세요.
