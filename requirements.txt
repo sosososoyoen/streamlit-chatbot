@@ -11,3 +11,6 @@ Pillow==11.2.1
 python-dotenv==1.1.0
 streamlit==1.45.0
 pysqlite3_binary==0.5.1
+
+tiktoken~=0.9.0
+loguru~=0.7.3
