@@ -1,31 +1,39 @@
+import logging
+
+import chromadb
 import streamlit as st
 import tiktoken
-from langchain_community.callbacks.manager import get_openai_callback
 from langchain.chains import ConversationalRetrievalChain
+from langchain.embeddings import CacheBackedEmbeddings
+from langchain.memory import ConversationBufferMemory
+from langchain.retrievers import BM25Retriever, EnsembleRetriever
+from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.storage import InMemoryByteStore
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_community.callbacks.manager import get_openai_callback
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
-from langchain.memory import ConversationBufferMemory
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
-from langchain.retrievers.multi_query import MultiQueryRetriever
-from langchain.embeddings import CacheBackedEmbeddings
-from langchain.storage import InMemoryByteStore
 from loguru import logger
-import logging
-import chromadb
+
 __import__('pysqlite3')
 import sys
+
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 chromadb.api.client.SharedSystemClient.clear_system_cache()
 store = InMemoryByteStore()
+
+
 def main():
     st.title("🐬 PDF QnA Bot")
     model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
+
+    cached_embedder = get_cached_embeddings()
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
@@ -55,16 +63,16 @@ def main():
         with st.spinner("🫧 파일 읽는 중..."):
             files_text = get_text(uploaded_files)
             text_chunks = get_text_chunks(files_text)
-            cached_embedder = get_cached_embeddings()
-            vectorestore = get_vectorestore(text_chunks,cached_embedder)
+            vectorestore = get_vectorestore(text_chunks, cached_embedder)
+            sparse_retriever = get_sparse_retriever(text_chunks)
+            ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
 
-
-        st.session_state.conversation = get_conversation_chain(vectorestore, open_ai_key, model)
+        st.session_state.conversation = get_conversation_chain(ensemble_retriever, open_ai_key, model)
 
         st.session_state.processComplete = True
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "안녕하세요~ PDF QnA Bot입니다."}]
+        st.session_state.messages = []
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -78,6 +86,10 @@ def main():
                                         help=doc.page_content)
 
     history = StreamlitChatMessageHistory(key="chat_messages")
+
+    if st.session_state.processComplete is None:
+        st.info("파일과 open API Key를 입력하고 Process 버튼을 눌러주세요.")
+        st.stop()
 
     # chat
     if query := st.chat_input("질문을 입력해주세요."):
@@ -107,6 +119,7 @@ def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
     return len(tokens)
+
 
 def get_cached_embeddings():
     embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
@@ -145,18 +158,33 @@ def get_text_chunks(text):
     text_chunks = text_splitter.split_documents(text)
     return text_chunks
 
+
 def get_vectorestore(text_chunks, embedder):
     persist_directory = "./chroma_db"
-    vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory, collection_name="pdf_docs")
+    vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory,
+                                         collection_name="pdf_docs")
     return vectorestore
 
 
-def get_conversation_chain(vectorestore, open_ai_key, model):
+def get_sparse_retriever(text_chunks):
+    return BM25Retriever.from_documents(
+        text_chunks,
+    )
+
+
+def get_ensemble_retriever(sparse, dense):
+    return EnsembleRetriever(
+        retrievers=[sparse, dense],
+        weights=[0.7, 0.3],
+    )
+
+
+def get_conversation_chain(retriever, open_ai_key, model):
     llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=get_multiquery_retriever(vectorestore, model),
+        retriever=retriever,
         memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True, output_key="answer"),
         get_chat_history=lambda h: h,
         return_source_documents=True,
