@@ -65,7 +65,9 @@ def main():
             text_chunks = get_text_chunks(files_text)
             vectorestore = get_vectorestore(text_chunks, cached_embedder)
             sparse_retriever = get_sparse_retriever(text_chunks)
-            ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
+            multiquery_retriever = get_multiquery_retriever(vectorestore, model)
+            ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever(),
+                                                        multiquery_retriever)
 
         st.session_state.conversation = get_conversation_chain(ensemble_retriever, open_ai_key, model)
 
@@ -172,10 +174,10 @@ def get_sparse_retriever(text_chunks):
     )
 
 
-def get_ensemble_retriever(sparse, dense):
+def get_ensemble_retriever(sparse, dense, multi):
     return EnsembleRetriever(
-        retrievers=[sparse, dense],
-        weights=[0.7, 0.3],
+        retrievers=[sparse, dense, multi],
+        weights=[0.5, 0.3, 0.2],
     )
 
 
