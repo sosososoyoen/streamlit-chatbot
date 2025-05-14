@@ -11,9 +11,18 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
+from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.embeddings import CacheBackedEmbeddings
+from langchain.storage import InMemoryByteStore
 from loguru import logger
+import logging
+import chromadb
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
-
+chromadb.api.client.SharedSystemClient.clear_system_cache()
+store = InMemoryByteStore()
 def main():
     st.title("🐬 PDF QnA Bot")
     model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
@@ -43,9 +52,12 @@ def main():
         if not uploaded_files:
             st.info("파일을 업로드 해주세요.")
             st.stop()
-        files_text = get_text(uploaded_files)
-        text_chunks = get_text_chunks(files_text)
-        vectorestore = get_vectorestore(text_chunks)
+        with st.spinner("🫧 파일 읽는 중..."):
+            files_text = get_text(uploaded_files)
+            text_chunks = get_text_chunks(files_text)
+            cached_embedder = get_cached_embeddings()
+            vectorestore = get_vectorestore(text_chunks,cached_embedder)
+
 
         st.session_state.conversation = get_conversation_chain(vectorestore, open_ai_key, model)
 
@@ -62,7 +74,8 @@ def main():
                 if message.get("source_documents"):
                     with st.expander("참고 문서 확인"):
                         for doc in message["source_documents"]:
-                            st.markdown(f"{doc.metadata['source']} 📄p.{doc.metadata['page_label']}", help=doc.page_content)
+                            st.markdown(f"{doc.metadata['source']} 📄p.{doc.metadata['page_label']}",
+                                        help=doc.page_content)
 
     history = StreamlitChatMessageHistory(key="chat_messages")
 
@@ -86,7 +99,8 @@ def main():
                 with st.expander("참고 문서 확인"):
                     for doc in source_documents:
                         st.markdown(f"{doc.metadata['source']} p.{doc.metadata['page_label']}", help=doc.page_content)
-                st.session_state.messages.append({"role": "assistant", "content": response, "source_documents": source_documents})
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": response, "source_documents": source_documents})
 
 
 def tiktoken_len(text):
@@ -94,8 +108,16 @@ def tiktoken_len(text):
     tokens = tokenizer.encode(text)
     return len(tokens)
 
+def get_cached_embeddings():
+    embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
+    cache = CacheBackedEmbeddings.from_bytes_store(
+        underlying_embeddings=embeddings,
+        document_embedding_cache=store,
+        namespace=embeddings.model,  # 기본 임베딩과 저장소를 사용하여 캐시 지원 임베딩을 생성
+    )
+    return cache
 
-@st.cache_resource
+
 def get_text(docs):
     doc_list = []
 
@@ -123,10 +145,9 @@ def get_text_chunks(text):
     text_chunks = text_splitter.split_documents(text)
     return text_chunks
 
-def get_vectorestore(text_chunks):
+def get_vectorestore(text_chunks, embedder):
     persist_directory = "./chroma_db"
-    embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
-    vectorestore = Chroma.from_documents(text_chunks, embeddings, persist_directory=persist_directory)
+    vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory, collection_name="pdf_docs")
     return vectorestore
 
 
@@ -135,7 +156,7 @@ def get_conversation_chain(vectorestore, open_ai_key, model):
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vectorestore.as_retriever(search_type="mmr"),
+        retriever=get_multiquery_retriever(vectorestore, model),
         memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True, output_key="answer"),
         get_chat_history=lambda h: h,
         return_source_documents=True,
@@ -144,9 +165,20 @@ def get_conversation_chain(vectorestore, open_ai_key, model):
     return conversation_chain
 
 
-if __name__ == "__main__":
-    main()
+def get_multiquery_retriever(vectorestore, model):
+    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    retriever = vectorestore.as_retriever(search_type="mmr")
+    multiquery_retriever = MultiQueryRetriever.from_llm(
+        retriever=retriever,
+        llm=llm,
+    )
+    return multiquery_retriever
 
+
+if __name__ == "__main__":
+    logging.basicConfig()
+    logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
+    main()
 
 summary_prompt = """\
 Below is an excerpt from a paper retrieved and extracted using RAG:
