@@ -1,28 +1,17 @@
-import chromadb
 import streamlit as st
 import tiktoken
-from loguru import logger
+from langchain_community.callbacks.manager import get_openai_callback
+from langchain.chains import ConversationalRetrievalChain
+from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain.memory import ConversationBufferMemory
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
-
-from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import UnstructuredPowerPointLoader
-
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-
-from langchain.memory import ConversationBufferMemory
-from langchain.callbacks import get_openai_callback
-from langchain.memory import StreamlitChatMessageHistory
+from loguru import logger
 
 
 def main():
@@ -67,7 +56,13 @@ def main():
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "user":
+                st.markdown(message["content"])
+            else:
+                if message.get("source_documents"):
+                    with st.expander("참고 문서 확인"):
+                        for doc in message["source_documents"]:
+                            st.markdown(f"{doc.metadata['source']} 📄p.{doc.metadata['page_label']}", help=doc.page_content)
 
     history = StreamlitChatMessageHistory(key="chat_messages")
 
@@ -89,10 +84,9 @@ def main():
 
                 st.markdown(response)
                 with st.expander("참고 문서 확인"):
-                    st.markdown(source_documents[0].metadata['source'], help=source_documents[0].page_content)
-                    st.markdown(source_documents[1].metadata['source'], help=source_documents[1].page_content)
-                    st.markdown(source_documents[2].metadata['source'], help=source_documents[2].page_content)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                    for doc in source_documents:
+                        st.markdown(f"{doc.metadata['source']} p.{doc.metadata['page_label']}", help=doc.page_content)
+                st.session_state.messages.append({"role": "assistant", "content": response, "source_documents": source_documents})
 
 
 def tiktoken_len(text):
