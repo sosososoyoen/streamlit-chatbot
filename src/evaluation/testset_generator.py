@@ -1,12 +1,12 @@
-import os
 import json
 import random
-import streamlit as st
-from pydantic import BaseModel, ConfigDict
+
 import outlines.models as models
-from outlines import generate
+import streamlit as st
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from outlines import generate
+from pydantic import BaseModel, ConfigDict
 
 
 # —————————————————————————————

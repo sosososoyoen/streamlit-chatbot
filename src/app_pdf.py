@@ -3,12 +3,9 @@ import logging
 import chromadb
 import streamlit as st
 import tiktoken
-from huggingface_hub import login as hf_login
-from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace
 import torch
 from dotenv import load_dotenv
-from langsmith import traceable
-from langchain_core.prompts import PromptTemplate
+from huggingface_hub import login as hf_login
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.memory import ConversationBufferMemory
@@ -22,10 +19,13 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_core.prompts import PromptTemplate
+from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
+from langsmith import traceable
 from loguru import logger
-from langsmith.wrappers import wrap_openai
+
 __import__('pysqlite3')
 import sys
 load_dotenv()
