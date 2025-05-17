@@ -3,6 +3,12 @@ import logging
 import chromadb
 import streamlit as st
 import tiktoken
+from huggingface_hub import login as hf_login
+from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace
+import torch
+from dotenv import load_dotenv
+from langsmith import traceable
+from langchain_core.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.memory import ConversationBufferMemory
@@ -19,19 +25,39 @@ from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from loguru import logger
-
+from langsmith.wrappers import wrap_openai
 __import__('pysqlite3')
 import sys
-
+load_dotenv()
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 chromadb.api.client.SharedSystemClient.clear_system_cache()
 store = InMemoryByteStore()
+template = """
+      You are an assistant for question-answering tasks. 
+  Use the following pieces of retrieved context to answer the question. 
+  If you don't know the answer, just say that you don't know. 
+  Please write your answer in a markdown table format with the main points.
+  Answer in Korean.
+
+  #Example Format:
+  (brief summary of the answer)
+  (table)
+  (detailed answer to the question)
+
+
+  #Question: 
+  {question}
+
+  #Context: 
+  {context} 
+    """
 
 
 def main():
+    hf_login(st.secrets["HF_KEY"])
     st.title("🐬 PDF QnA Bot")
-    model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
+    model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano", "gemma-2b-it"))
 
     cached_embedder = get_cached_embeddings()
 
@@ -63,7 +89,7 @@ def main():
         with st.spinner("🫧 파일 읽는 중..."):
             files_text = get_text(uploaded_files)
             text_chunks = get_text_chunks(files_text)
-            vectorestore = get_vectorestore(text_chunks, cached_embedder)
+            vectorestore = get_vectorstore(text_chunks, cached_embedder)
             sparse_retriever = get_sparse_retriever(text_chunks)
             multiquery_retriever = get_multiquery_retriever(vectorestore, model)
             ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever(),
@@ -117,6 +143,25 @@ def main():
                     {"role": "assistant", "content": response, "source_documents": source_documents})
 
 
+@st.cache_resource
+def get_model():
+    # Hugging Face에 로그인
+    hf_token = st.secrets["HF_KEY"]
+    hf_login(hf_token)
+    device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+    llm = HuggingFacePipeline.from_model_id(
+        model_id="google/gemma-2b-it",
+        task="text-generation",
+        device=-1,  # 0번 GPU에 load
+        pipeline_kwargs={
+            "max_new_tokens": 256,  # 최대 256개의 token 생성
+            "do_sample": False  # deterministic하게 답변 결정
+        }
+    )
+
+    return ChatHuggingFace(llm=llm)
+
+
 def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
@@ -161,7 +206,7 @@ def get_text_chunks(text):
     return text_chunks
 
 
-def get_vectorestore(text_chunks, embedder):
+def get_vectorstore(text_chunks, embedder):
     persist_directory = "./chroma_db"
     vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory,
                                          collection_name="pdf_docs")
@@ -181,7 +226,9 @@ def get_ensemble_retriever(sparse, dense, multi):
     )
 
 
+@traceable(metadata={"llm": "gpt-4o-mini"})
 def get_conversation_chain(retriever, open_ai_key, model):
+    # llm = get_model()
     llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
@@ -191,10 +238,12 @@ def get_conversation_chain(retriever, open_ai_key, model):
         get_chat_history=lambda h: h,
         return_source_documents=True,
         verbose=True,
+        combine_docs_chain_kwargs={"prompt": PromptTemplate.from_template(template)}
     )
     return conversation_chain
 
 
+@traceable(run_type="retriever")
 def get_multiquery_retriever(vectorestore, model):
     llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     retriever = vectorestore.as_retriever(search_type="mmr")

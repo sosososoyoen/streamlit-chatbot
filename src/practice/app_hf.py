@@ -20,31 +20,19 @@ def get_model():
     hf_token = st.secrets["HF_KEY"]
     login(hf_token)
 
-    # llm = HuggingFacePipeline.from_model_id(
-    #     model_id="LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct",
-    #     task="text-generation",
-    #     device=0, # GPU 사용
-    #     model_kwargs={
-    #         "trust_remote_code": True, # 모델이 제공하는 코드를 신뢰
-    #     },
-    #     pipeline_kwargs={
-    #         "max_length": 512,
-    #         "do_sample": False, # 샘플링 사용x 확률이 높은 토큰 선택
-    #     })
-
     llm = HuggingFacePipeline.from_model_id(
         model_id="google/gemma-2b-it",
         task="text-generation",
-        device=0,  # 0번 GPU에 load
+        use_auth_token=hf_token,
         pipeline_kwargs={
             "max_new_tokens": 256,  # 최대 256개의 token 생성
             "do_sample": False  # deterministic하게 답변 결정
         }
     )
-    
+
     return ChatHuggingFace(llm=llm)
-    
-model = get_model()
+
+
 if prompt := st.chat_input("Ask me anything!"):
     with st.chat_message("user"):
         st.markdown(prompt)
