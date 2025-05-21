@@ -1,3 +1,4 @@
 .streamlit/secrets.toml
 .env
 chroma_db
+.env
