@@ -16,7 +16,7 @@ def get_vectorstore():
     embedder = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
     persist_directory = "./chroma_db"
     vectorstore = Chroma(
-        collection_name="pdf_docs",
+        collection_name="rag-eval",
         embedding_function=embedder,
         persist_directory=persist_directory,
     )

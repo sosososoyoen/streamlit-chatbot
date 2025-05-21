@@ -9,7 +9,8 @@ from huggingface_hub import login as hf_login
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.memory import ConversationBufferMemory
-from langchain.retrievers import BM25Retriever, EnsembleRetriever
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.storage import InMemoryByteStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -20,16 +21,18 @@ from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace
+from transformers import pipeline
+from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace, HuggingFaceEndpoint
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from loguru import logger
+import sys
 
 __import__('pysqlite3')
-import sys
-load_dotenv()
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
+load_dotenv()
 
 chromadb.api.client.SharedSystemClient.clear_system_cache()
 store = InMemoryByteStore()
@@ -55,7 +58,6 @@ template = """
 
 
 def main():
-    hf_login(st.secrets["HF_KEY"])
     st.title("🐬 PDF QnA Bot")
     model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano", "gemma-2b-it"))
 
@@ -80,20 +82,18 @@ def main():
         process = st.button("Process")
 
     if process:
-        if not open_ai_key:
-            st.info("Please enter your OpenAI API key.")
-            st.stop()
-        if not uploaded_files:
-            st.info("파일을 업로드 해주세요.")
-            st.stop()
+        # if not open_ai_key:
+        #     st.info("Please enter your OpenAI API key.")
+        #     st.stop()
+        # if not uploaded_files:
+        #     st.info("파일을 업로드 해주세요.")
+        #     st.stop()
         with st.spinner("🫧 파일 읽는 중..."):
             files_text = get_text(uploaded_files)
             text_chunks = get_text_chunks(files_text)
             vectorestore = get_vectorstore(text_chunks, cached_embedder)
             sparse_retriever = get_sparse_retriever(text_chunks)
-            multiquery_retriever = get_multiquery_retriever(vectorestore, model)
-            ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever(),
-                                                        multiquery_retriever)
+            ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
 
         st.session_state.conversation = get_conversation_chain(ensemble_retriever, open_ai_key, model)
 
@@ -117,7 +117,7 @@ def main():
 
     if st.session_state.processComplete is None:
         st.info("파일과 open API Key를 입력하고 Process 버튼을 눌러주세요.")
-        st.stop()
+        # st.stop()
 
     # chat
     if query := st.chat_input("질문을 입력해주세요."):
@@ -145,21 +145,20 @@ def main():
 
 @st.cache_resource
 def get_model():
-    # Hugging Face에 로그인
-    hf_token = st.secrets["HF_KEY"]
-    hf_login(hf_token)
-    device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
-    llm = HuggingFacePipeline.from_model_id(
-        model_id="google/gemma-2b-it",
-        task="text-generation",
-        device=-1,  # 0번 GPU에 load
-        pipeline_kwargs={
-            "max_new_tokens": 256,  # 최대 256개의 token 생성
-            "do_sample": False  # deterministic하게 답변 결정
-        }
-    )
+    hf_login(st.secrets["HF_KEY"])
+    pipe = pipeline("text-generation", model="Qwen/Qwen3-0.6B")
+    # llm = HuggingFacePipeline.from_model_id(
+    #     model_id="Qwen/Qwen3-0.6B",
+    #     task="text-generation",
+    #     device="auto",
+    #     pipeline_kwargs={
+    #         "max_new_tokens": 256,  # 최대 256개의 token 생성
+    #         "do_sample": False  # deterministic하게 답변 결정
+    #     }
+    # )
+    model = HuggingFacePipeline(pipeline=pipe)
 
-    return ChatHuggingFace(llm=llm)
+    return model
 
 
 def tiktoken_len(text):
@@ -219,17 +218,17 @@ def get_sparse_retriever(text_chunks):
     )
 
 
-def get_ensemble_retriever(sparse, dense, multi):
+def get_ensemble_retriever(sparse, dense):
     return EnsembleRetriever(
-        retrievers=[sparse, dense, multi],
-        weights=[0.5, 0.3, 0.2],
+        retrievers=[sparse, dense],
+        weights=[0.5, 0.5],
     )
 
 
-@traceable(metadata={"llm": "gpt-4o-mini"})
+# @traceable(metadata={"llm": "gemma-3-1b-it"})
 def get_conversation_chain(retriever, open_ai_key, model):
-    # llm = get_model()
-    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    llm = get_model()
+    # llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
@@ -257,6 +256,7 @@ def get_multiquery_retriever(vectorestore, model):
 if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
+    _llm = get_model()
     main()
 
 summary_prompt = """\

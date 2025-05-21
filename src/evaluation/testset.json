@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "question": "삼은 왜 48시간 동안 다운되었습니까?",
+    "answer": "삼은 심각한 분산 서비스 거부(DDoS) 공격을 경험하여 딥시크 공식 웹사이트가 48시간 동안 다운되었습니다."
+  },
+  {
+    "id": 2,
+    "question": "딥시크의 AI 기술 혁신이 AI 산업계에 미치는 예상되는 영향은 무엇인가요?",
+    "answer": "딥시크의 AI 기술 혁신은 기존의 AI 기업들의 전략에 영향을 미치고, PTX를 사용하여 GPU 최적화를 극대화함으로써 기업들의 AI 모델 개발 비용을 낮추는 효과를 가져올 것으로 예상됩니다. 또한 AI 산업이 대규모 범용 모델에서 벗어나 특정 산업에 맞춤형으로 이동하는 경향 속에서 오픈소스 AI 모델의 활용 증가가 예상됩니다."
+  },
+  {
+    "id": 3,
+    "question": "어떤 국가들이 국가안보를 이유로 정부 시스템에서 딥시크 사용을 금지했나요?",
+    "answer": "호주와 대만은 국가안보를 이유로 모든 정부 시스템에서 딥시크 사용을 금지했습니다."
+  },
+  {
+    "id": 4,
+    "question": "딥시크는 어떤 이유로 정치적으로 민감한 주제에 대한 응답이 제한적인가?",
+    "answer": "딥시크는 중국의 규제 환경에서 운영되기 때문에 정치적으로 민감한 주제에 대한 응답이 제한적입니다."
+  },
+  {
+    "id": 5,
+    "question": "중국 AI 기업들이 국제 시장에서 영향력을 확대할 때 직면할 수 있는 주요 저해 요인은 무엇인가?",
+    "answer": "중국 AI 기업들이 국제 시장에서 영향력을 확대할 때 직면할 수 있는 주요 저해 요인은 데이터 보안 문제, 국제 규제 준수의 어려움, 그리고 정치적 검열 문제입니다."
+  },
+  {
+    "id": 6,
+    "question": "R1-Distill-Qwen-32B와 R1-Distill-Llama-70B 모델은 어떠한 작업에서 OpenAI의 o1-mini보다 우수한 성능을 보였는가?",
+    "answer": "R1-Distill-Qwen-32B와 R1-Distill-Llama-70B 모델은 코딩 및 수학적 추론과 관련된 작업에서 OpenAI의 o1-mini보다 우수한 성능을 보였다."
+  },
+  {
+    "id": 7,
+    "question": "GRPO 알고리즘은 기존 강화학습 방법과 대해서 어떤 점에서 차별화되어 있는가?",
+    "answer": "GRPO 알고리즘은 기존 강화학습 방법과 비교하여 응답 그룹을 서로 비교 평가하는 방식으로 모델을 최적화하며, 비용이 많이 소요되며 평가자에 크게 의존하는 기존 방법을 개선했습니다. 일반적인 정책 모델과 비평 모델을 함께 사용하는 방식 대신, 여러 답변을 그룹으로 묶어 비교 평가하면서 상대적으로 더 우수한 답변을 학습하고, 별도의 비평 모델 사용을 피하여 학습 비용을 절감합니다."
+  },
+  {
+    "id": 8,
+    "question": "SPRi AI Brief Special 2025-2월호 7페이지의 주제는 무엇인가요?",
+    "answer": "SPRi AI Brief Special 2025-2월호 7페이지의 주제는 인공지능의 최신 기술 동향과 미래 전망에 대한 분석입니다."
+  },
+  {
+    "id": 9,
+    "question": "What was the focus of the French privacy watchdog's inquiry regarding DeepSeek, as reported by Reuters in early 2025?",
+    "answer": "The French privacy watchdog was set to quiz DeepSeek on matters of AI and data protection, as reported by Reuters on January 31, 2025."
+  },
+  {
+    "id": 10,
+    "question": "2025년 2월호의 SPRi AI Brief Special의 주요 내용은 무엇인가요?",
+    "answer": "2025년 2월호의 SPRi AI Brief Special은 인공지능의 최신 발전 동향과 기술 혁신, 그 응용 사례들을 중심으로 다양한 산업에서의 AI 활용에 대한 인사이트를 제공합니다."
+  },
+  {
+    "id": 11,
+    "question": "딥시크가 AI 모델 학습 방식에 미칠 수 있는 주요 영향은 무엇인가요?",
+    "answer": "딥시크는 혁신적인 기술로 AI 모델 학습 방식을 변화시킬 수 있으며, 특히 MoE 등의 기술을 통해 미래 AI 모델들이 연산 비용을 최소화하면서 성능을 유지할 수 있도록 하는 최적화 기법의 도입을 촉발할 수 있습니다. 딥시크는 또한 AI 모델의 비용 하락 추세를 가속화하고, GRPO 기법 같은 새로운 최적화 기법의 확산으로 AI 모델 개발에 영향을 미칠 것으로 예상됩니다."
+  },
+  {
+    "id": 12,
+    "question": "딥시크의 R1 모델은 어떤 성능을 기록했나요?",
+    "answer": "DeepSeek의 R1 모델은 GPT-4 모델과 경쟁할 만한 성능을 기록했다고 주장되었습니다."
+  },
+  {
+    "id": 13,
+    "question": "What significant action did Italy take regarding the AI application DeepSeek in early 2025?",
+    "answer": "Italy blocked access to the Chinese AI application DeepSeek to protect users' data on January 31, 2025."
+  },
+  {
+    "id": 14,
+    "question": "딥시크 V3 모델의 기술적 특징은 무엇인가?",
+    "answer": "딥시크 V3 모델은 전문가 혼합 아키텍처(Mixture-of-Experts, MoE)에 기반한 언어모델로, 총 6,710억 개의 파라미터를 보유하고 있지만 각 토큰 처리 시 370억 개의 파라미터만 활성화됩니다. 14.8조 개의 고품질 데이터를 사용해 사전학습하였고, 지도학습 미세조정 및 강화학습을 통해 성능을 극대화했습니다. 학습에는 총 2.788M H800 GPU 시간이 소요되었습니다. V3 모델은 효율적인 추론과 비용 절감형 학습을 위해 MoE 및 MLA 같은 다양한 엔지니어링 기법을 사용하여 OpenAI GPT-4 등과 경쟁할 만한 성능을 보입니다."
+  },
+  {
+    "id": 15,
+    "question": "DeepSeek-R1 증류 모델은 어떻게 효율성을 극대화합니까?",
+    "answer": "DeepSeek-R1 증류 모델은 대규모 모델에서 작은 모델로 지식을 압축하여 성능 저하 없이 효율성을 극대화하는 기술을 사용합니다."
+  },
+  {
+    "id": 16,
+    "question": "2025년 2월호 SPRi AI Brief의 주요 주제는 무엇인가요?",
+    "answer": "SPRi AI Brief 2025년 2월호의 주요 주제는 인공지능의 최신 발전과 응용 사례입니다."
+  },
+  {
+    "id": 17,
+    "question": "왜 AI 신뢰성을 확보하기 위해 알고리즘의 투명성을 강화하고 AI 학습 데이터 품질 및 개인정보 보호 체계를 구축할 필요가 있는가?",
+    "answer": "AI 신뢰성을 확보하기 위해서는 알고리즘의 투명성을 강화하고 AI 학습 데이터 품질을 높이며 개인정보 보호 체계를 구축하여 국제 및 지역별 AI 규제 흐름에 신속히 대응하기 위한 유연하고 체계적인 법적 기반을 마련해야 하기 때문입니다."
+  },
+  {
+    "id": 18,
+    "question": "What method did the DeepSeek research team use to enhance the reasoning capability of the R1-Zero model?",
+    "answer": "The DeepSeek research team used the Group Relative Policy Optimization (GRPO) technique within a reinforcement learning framework to enhance the reasoning capability of the R1-Zero model, based on the DeepSeek-V3-Base model with 671 billion parameters."
+  },
+  {
+    "id": 19,
+    "question": "What are some of the actions taken by different countries against the Chinese AI company DeepSeek due to security and privacy concerns?",
+    "answer": "Various countries, including the United States, which prohibited DeepSeek on Navy and NASA devices, and introduced a legislative proposal to ban its use on government devices. Texas and New York have also banned it from government devices. Furthermore, the European Union is contemplating further regulatory actions, while Australia and Taiwan have already banned its use in government departments. Additionally, major Japanese firms like Toyota and South Korean ministries have restricted its use."
+  },
+  {
+    "id": 20,
+    "question": "DeepSeek-V3 모델이 MoE(Mixture-of-Experts) 기술을 적용한 주요 이유는 무엇인가요?",
+    "answer": "DeepSeek-V3 모델은 MoE 기술을 적용하여 특정 작업에 적합한 신경망 모듈만 활성화함으로써 연산 효율성과 답변 품질을 최적화하는 것이 주요 목표입니다. 이는 기초 모델을 수학, 코딩 등 특정 작업에 최적화된 여러 개의 소규모 전문가 모델로 나누어 학습 부담을 줄여주는 방식을 적용함으로써 이루어집니다."
+  }
+]
