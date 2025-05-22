@@ -8,6 +8,7 @@ from transformers import (
 )
 from langchain import HuggingFacePipeline
 import nltk
+from huggingface_hub import login as hf_login
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
@@ -33,7 +34,6 @@ from sentence_transformers import SentenceTransformer, util
 import os
 
 load_dotenv()
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 json_path = os.path.join(current_dir, "testset.json")
 with open(json_path, "r", encoding="utf-8") as file:
@@ -42,7 +42,46 @@ with open(json_path, "r", encoding="utf-8") as file:
 # Define the input and reference output pairs that you'll use to evaluate your app
 client = Client()
 dataset_name = "RAG QA Example Dataset"
-model = "gemma-2b-it"
+model_id = "google/gemma-3-12b-it"
+
+
+def get_model():
+    if "gpt" in model_id:
+        model = ChatOpenAI(model=model_id, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+        return model
+    else:
+        hf_login(st.secrets["HF_KEY"])
+        repo_id = "google/gemma-3-1b-it"
+        # hf = HuggingFacePipeline.from_model_id(
+        #     model_id=repo_id,
+        #     task="text-generation",
+        #     pipeline_kwargs={"max_new_tokens": 10},
+        # )
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.float16,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            quantization_config=bnb_config,
+            device_map="auto",
+        )
+        text_gen = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            device_map="auto",
+            max_new_tokens=256,
+            do_sample=False
+        )
+        hf = HuggingFacePipeline(pipeline=text_gen)
+        print(hf)
+        return hf
+
+
+llm = get_model()
 
 examples = [
     {
@@ -182,14 +221,14 @@ def get_ensemble_retriever(sparse, dense):
     )
 
 
-def get_multiquery_retriever(vectorestore, model):
-    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
-    retriever = vectorestore.as_retriever(search_type="mmr")
-    multiquery_retriever = MultiQueryRetriever.from_llm(
-        retriever=retriever,
-        llm=llm,
-    )
-    return multiquery_retriever
+# def get_multiquery_retriever(vectorestore, model):
+#     llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+#     retriever = vectorestore.as_retriever(search_type="mmr")
+#     multiquery_retriever = MultiQueryRetriever.from_llm(
+#         retriever=retriever,
+#         llm=llm,
+#     )
+#     return multiquery_retriever
 
 
 def target(inputs: dict) -> dict:
@@ -197,10 +236,11 @@ def target(inputs: dict) -> dict:
     text_chunks = get_text_chunks(files_text)
     vectorestore = get_vectorstore(text_chunks, embeddings)
     sparse_retriever = get_sparse_retriever(text_chunks)
-    multiquery_retriever = get_multiquery_retriever(vectorestore)
+    # multiquery_retriever = get_multiquery_retriever(vectorestore)
     ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
     chain = get_conversation_chain(ensemble_retriever)
     result = chain({"question": inputs["question"]})
+    print(result)
     return {"answer": result["answer"]}
 
 
@@ -214,34 +254,11 @@ def get_text():
     return documents
 
 
-def get_model():
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,  # 4-bit 로드
-        bnb_4bit_quant_type="nf4",  # 양자화 타입 (nf4 권장)
-        bnb_4bit_use_double_quant=True,  # double quantization
-        bnb_4bit_compute_dtype=torch.float16,
-    )
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
-    hf_model = AutoModelForCausalLM.from_pretrained(
-        "google/gemma-2b-it",
-        quantization_config=bnb_config,
-        device_map="auto",  # 가능한 디바이스에 자동 분산
-    )
-    gen_pipeline = pipeline(
-        "text-generation",
-        model=hf_model,
-        tokenizer=tokenizer,
-        max_new_tokens=256,
-        temperature=0.7,
-    )
-    return gen_pipeline
-
-
 def get_conversation_chain(retriever):
-    if model == "gemma-2b-it":
-        llm = HuggingFacePipeline(pipeline=get_model())
-    else:
-        llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    # if model_id == "google/gemma-3-1b-it":
+    #     llm = get_model()
+    # else:
+    #     llm = ChatOpenAI(model=model_id, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
@@ -266,6 +283,6 @@ experiment_results = client.evaluate(
         meteor_evaluator,
         semscore_evaluator,
     ],
-    experiment_prefix=f"{model} + ensemble retriever + Heuristic",
+    experiment_prefix=f"{model_id} + ensemble retriever + Heuristic",
     max_concurrency=2,
 )

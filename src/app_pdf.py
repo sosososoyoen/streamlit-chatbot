@@ -1,16 +1,15 @@
 import logging
+import sys
 
 import chromadb
 import streamlit as st
 import tiktoken
 import torch
 from dotenv import load_dotenv
-from huggingface_hub import login as hf_login
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.retrievers import EnsembleRetriever
-from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.storage import InMemoryByteStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -20,14 +19,13 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.retrievers import BM25Retriever
 from langchain_core.prompts import PromptTemplate
-from transformers import pipeline
-from langchain_huggingface import HuggingFacePipeline, ChatHuggingFace, HuggingFaceEndpoint
+from langchain_huggingface import HuggingFacePipeline
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from loguru import logger
-import sys
 
 __import__('pysqlite3')
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
@@ -59,7 +57,7 @@ template = """
 
 def main():
     st.title("🐬 PDF QnA Bot")
-    model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano", "gemma-2b-it"))
+    model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
 
     cached_embedder = get_cached_embeddings()
 
@@ -82,12 +80,12 @@ def main():
         process = st.button("Process")
 
     if process:
-        # if not open_ai_key:
-        #     st.info("Please enter your OpenAI API key.")
-        #     st.stop()
-        # if not uploaded_files:
-        #     st.info("파일을 업로드 해주세요.")
-        #     st.stop()
+        if not open_ai_key:
+            st.info("Please enter your OpenAI API key.")
+            st.stop()
+        if not uploaded_files:
+            st.info("파일을 업로드 해주세요.")
+            st.stop()
         with st.spinner("🫧 파일 읽는 중..."):
             files_text = get_text(uploaded_files)
             text_chunks = get_text_chunks(files_text)
@@ -117,7 +115,7 @@ def main():
 
     if st.session_state.processComplete is None:
         st.info("파일과 open API Key를 입력하고 Process 버튼을 눌러주세요.")
-        # st.stop()
+        st.stop()
 
     # chat
     if query := st.chat_input("질문을 입력해주세요."):
@@ -145,20 +143,17 @@ def main():
 
 @st.cache_resource
 def get_model():
-    hf_login(st.secrets["HF_KEY"])
-    pipe = pipeline("text-generation", model="Qwen/Qwen3-0.6B")
-    # llm = HuggingFacePipeline.from_model_id(
-    #     model_id="Qwen/Qwen3-0.6B",
-    #     task="text-generation",
-    #     device="auto",
-    #     pipeline_kwargs={
-    #         "max_new_tokens": 256,  # 최대 256개의 token 생성
-    #         "do_sample": False  # deterministic하게 답변 결정
-    #     }
-    # )
-    model = HuggingFacePipeline(pipeline=pipe)
-
-    return model
+    device = 0 if torch.cuda.is_available() else -1
+    print(f"Using device: {'GPU' if device == 0 else 'CPU'}")
+    return HuggingFacePipeline.from_model_id(
+        model_id="google/gemma-3-1b-it",
+        task="text-generation",
+        device=device,
+        pipeline_kwargs={
+            "max_new_tokens": 256,  # 최대 256개의 token 생성
+            "do_sample": False  # deterministic하게 답변 결정
+        }
+    )
 
 
 def tiktoken_len(text):
@@ -225,10 +220,9 @@ def get_ensemble_retriever(sparse, dense):
     )
 
 
-# @traceable(metadata={"llm": "gemma-3-1b-it"})
+@traceable(run_type="llm")
 def get_conversation_chain(retriever, open_ai_key, model):
-    llm = get_model()
-    # llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
@@ -256,7 +250,6 @@ def get_multiquery_retriever(vectorestore, model):
 if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
-    _llm = get_model()
     main()
 
 summary_prompt = """\

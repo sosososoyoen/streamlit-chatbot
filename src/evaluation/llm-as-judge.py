@@ -1,6 +1,7 @@
 import json
 import os
-
+from langchain import HuggingFacePipeline
+from huggingface_hub import login as hf_login
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
@@ -31,7 +32,7 @@ with open(json_path, "r", encoding="utf-8") as file:
 # Define the input and reference output pairs that you'll use to evaluate your app
 client = Client()
 dataset_name = "RAG QA Example Dataset"
-model = "gpt-4o-mini"
+model_id = "google/gemma-3-1b-it"
 
 examples = [
     {
@@ -44,6 +45,25 @@ examples = [
 if not client.has_dataset(dataset_name=dataset_name):
     dataset = client.create_dataset(dataset_name=dataset_name)
     client.create_examples(dataset_id=dataset.id, examples=examples)
+
+
+def get_model():
+    if "gpt" in model_id:
+        model = ChatOpenAI(model=model_id, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+        return model
+    else:
+        hf_login(st.secrets["HF_KEY"])
+        repo_id = "google/gemma-3-1b-it"
+        hf = HuggingFacePipeline.from_model_id(
+            model_id=repo_id,
+            task="text-generation",
+            pipeline_kwargs={"max_new_tokens": 10},
+        )
+        print(hf)
+        return hf
+
+
+llm = get_model()
 
 
 def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
@@ -59,6 +79,7 @@ def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
     )
     return eval_result
 
+
 def helpfulness_evaluator(inputs: dict, outputs: dict):
     evaluator = create_llm_as_judge(
         prompt=RAG_HELPFULNESS_PROMPT,
@@ -70,6 +91,7 @@ def helpfulness_evaluator(inputs: dict, outputs: dict):
         outputs=outputs,
     )
     return eval_result
+
 
 # 응답 로직
 template = """
@@ -135,9 +157,9 @@ def target(inputs: dict) -> dict:
     text_chunks = get_text_chunks(files_text)
     vectorestore = get_vectorstore(text_chunks, embeddings)
     sparse_retriever = get_sparse_retriever(text_chunks)
-    multiquery_retriever = get_multiquery_retriever(vectorestore, model)
+    # multiquery_retriever = get_multiquery_retriever(vectorestore, model)
     ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
-    chain = get_conversation_chain(ensemble_retriever, model)
+    chain = get_conversation_chain(ensemble_retriever, model_id)
     result = chain({"question": inputs["question"]})
     return {"response": result["answer"]}
 
@@ -154,7 +176,7 @@ def get_text():
 
 def get_conversation_chain(retriever, model):
     # llm = get_model()
-    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    # llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
@@ -177,6 +199,6 @@ experiment_results = client.evaluate(
         correctness_evaluator,
         helpfulness_evaluator
     ],
-    experiment_prefix=f"{model} + ensemble retriever",
+    experiment_prefix=f"{model_id} + ensemble retriever + llm as judge",
     max_concurrency=2,
 )
