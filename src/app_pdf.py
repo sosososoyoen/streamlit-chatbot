@@ -149,7 +149,7 @@ def tiktoken_len(text):
 
 
 def get_cached_embeddings(open_ai_key):
-    embeddings = OpenAIEmbeddings(api_key=open_ai_key)
+    embeddings = OpenAIEmbeddings(api_key=open_ai_key, openai_organization=None )
     return embeddings
 
 
