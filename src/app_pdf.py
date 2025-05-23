@@ -161,7 +161,7 @@ def get_text(docs):
 
     for doc in docs:
         file_name = doc.name
-        with open(file_name, "wb") as file:
+        with open(file_name, "wb", encoding="utf-8") as file:
             file.write(doc.getvalue())
             logger.info(f"Uploaded file: {file_name}")
         if '.pdf' in file_name:
