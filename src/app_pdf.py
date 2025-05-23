@@ -150,12 +150,7 @@ def tiktoken_len(text):
 
 def get_cached_embeddings(open_ai_key):
     embeddings = OpenAIEmbeddings(api_key=open_ai_key)
-    cache = CacheBackedEmbeddings.from_bytes_store(
-        underlying_embeddings=embeddings,
-        document_embedding_cache=store,
-        namespace=embeddings.model,  # 기본 임베딩과 저장소를 사용하여 캐시 지원 임베딩을 생성
-    )
-    return cache
+    return embeddings
 
 
 def get_text(docs):
