@@ -4,6 +4,8 @@ __import__('pysqlite3')
 import sys
 
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 import chromadb
 import streamlit as st
 import tiktoken
@@ -161,7 +163,7 @@ def get_text(docs):
 
     for doc in docs:
         file_name = doc.name
-        with open(file_name, "wb", encoding="utf-8") as file:
+        with open(file_name, "wb") as file:
             file.write(doc.getvalue())
             logger.info(f"Uploaded file: {file_name}")
         if '.pdf' in file_name:
