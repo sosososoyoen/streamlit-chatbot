@@ -1,6 +1,7 @@
 import logging
+__import__('pysqlite3')
 import sys
-
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
 import streamlit as st
 import tiktoken
@@ -24,9 +25,6 @@ from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from loguru import logger
 import os
-
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 os.environ["LANGSMITH_TRACING"] = st.secrets["LANGSMITH_TRACING"]
 os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
