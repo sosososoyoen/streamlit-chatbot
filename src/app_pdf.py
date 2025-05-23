@@ -31,7 +31,7 @@ os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
 os.environ["LANGSMITH_API_KEY"] = st.secrets["LANGSMITH_API_KEY"]
 os.environ["LANGSMITH_PROJECT"] = st.secrets["LANGSMITH_PROJECT"]
 
-chromadb.api.client.SharedSystemClient.clear_system_cache()
+
 store = InMemoryByteStore()
 template = """
       You are an assistant for question-answering tasks. 
@@ -186,6 +186,8 @@ def get_text_chunks(text):
 
 
 def get_vectorstore(text_chunks, embedder):
+    client = chromadb.Client()
+    client.clear_system_cache()
     persist_directory = "./chroma_db"
     vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory,
                                          collection_name="pdf_docs")
