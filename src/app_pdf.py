@@ -59,7 +59,6 @@ def main():
     st.title("🐬 PDF QnA Bot")
     model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
 
-    cached_embedder = get_cached_embeddings()
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
@@ -89,6 +88,7 @@ def main():
         with st.spinner("🫧 파일 읽는 중..."):
             files_text = get_text(uploaded_files)
             text_chunks = get_text_chunks(files_text)
+            cached_embedder = get_cached_embeddings(open_ai_key)
             vectorestore = get_vectorstore(text_chunks, cached_embedder)
             sparse_retriever = get_sparse_retriever(text_chunks)
             ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
@@ -162,8 +162,8 @@ def tiktoken_len(text):
     return len(tokens)
 
 
-def get_cached_embeddings():
-    embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
+def get_cached_embeddings(open_ai_key):
+    embeddings = OpenAIEmbeddings(api_key=open_ai_key)
     cache = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=store,
@@ -222,7 +222,7 @@ def get_ensemble_retriever(sparse, dense):
 
 @traceable(run_type="llm")
 def get_conversation_chain(retriever, open_ai_key, model):
-    llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
+    llm = ChatOpenAI(model=model, api_key=open_ai_key, temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",

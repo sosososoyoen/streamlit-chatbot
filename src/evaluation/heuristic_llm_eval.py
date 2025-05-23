@@ -7,6 +7,7 @@ from transformers import (
     pipeline,
 )
 from langchain import HuggingFacePipeline
+from langchain_core.output_parsers import StrOutputParser
 import nltk
 from huggingface_hub import login as hf_login
 import streamlit as st
@@ -24,7 +25,6 @@ from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_teddynote.community.kiwi_tokenizer import KiwiTokenizer
 from langsmith import Client
-from bert_score import score as bert_score
 
 nltk.download('wordnet')
 from langsmith.schemas import Run, Example
@@ -33,6 +33,11 @@ from nltk.translate.bleu_score import sentence_bleu
 from nltk.translate import meteor_score
 from sentence_transformers import SentenceTransformer, util
 import os
+from openevals.llm import create_llm_as_judge
+from openevals.prompts import (
+    CORRECTNESS_PROMPT,
+    RAG_HELPFULNESS_PROMPT
+)
 
 load_dotenv()
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,8 +47,8 @@ with open(json_path, "r", encoding="utf-8") as file:
 
 # Define the input and reference output pairs that you'll use to evaluate your app
 client = Client()
-dataset_name = "RAG QA Example Dataset"
-model_id = "gpt-4o-mini"
+dataset_name = "Chatbot QA Example Dataset"
+model_id = "gpt-4.1-nano"
 
 
 def get_model():
@@ -173,11 +178,52 @@ def semscore_evaluator(run: Run, example: Example) -> dict:
     return {"key": "sem_score", "score": cosine_similarity}
 
 
+def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
+    evaluator = create_llm_as_judge(
+        prompt=CORRECTNESS_PROMPT,
+        model="openai:o3-mini",
+        feedback_key="correctness",
+    )
+    eval_result = evaluator(
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs
+    )
+    return eval_result
+
+
+def helpfulness_evaluator(inputs: dict, outputs: dict):
+    evaluator = create_llm_as_judge(
+        prompt=RAG_HELPFULNESS_PROMPT,
+        model="openai:o3-mini",
+        feedback_key="helpfulness",
+    )
+    eval_result = evaluator(
+        inputs=inputs,
+        outputs=outputs,
+    )
+    return eval_result
+
+
 # 응답 로직
+# template = """
+#       You are an assistant for question-answering tasks.
+#   Please write your answer in a markdown table format with the main points.
+#   Answer in Korean.
+#
+#   #Example Format:
+#   (brief summary of the answer)
+#   (table)
+#   (detailed answer to the question)
+#
+#
+#   #Question:
+#   {question}
+#     """
 template = """
-      You are an assistant for question-answering tasks. 
-  Use the following pieces of retrieved context to answer the question. 
-  If you don't know the answer, just say that you don't know. 
+      You are an assistant for question-answering tasks.
+  Use the following pieces of retrieved context to answer the question.
+  If you don't know the answer, just say that you don't know.
   Please write your answer in a markdown table format with the main points.
   Answer in Korean.
 
@@ -187,12 +233,14 @@ template = """
   (detailed answer to the question)
 
 
-  #Question: 
+  #Question:
   {question}
 
-  #Context: 
-  {context} 
+  #Context:
+  {context}
     """
+
+
 embeddings = OpenAIEmbeddings(api_key=st.secrets["OPENAI_KEY"])
 
 
@@ -222,14 +270,13 @@ def get_ensemble_retriever(sparse, dense):
     )
 
 
-# def get_multiquery_retriever(vectorestore, model):
-#     llm = ChatOpenAI(model=model, api_key=st.secrets["OPENAI_KEY"], temperature=0)
-#     retriever = vectorestore.as_retriever(search_type="mmr")
-#     multiquery_retriever = MultiQueryRetriever.from_llm(
-#         retriever=retriever,
-#         llm=llm,
-#     )
-#     return multiquery_retriever
+def get_multiquery_retriever(vectorestore):
+    retriever = vectorestore.as_retriever(search_type="mmr")
+    multiquery_retriever = MultiQueryRetriever.from_llm(
+        retriever=retriever,
+        llm=llm,
+    )
+    return multiquery_retriever
 
 
 def target(inputs: dict) -> dict:
@@ -237,9 +284,12 @@ def target(inputs: dict) -> dict:
     text_chunks = get_text_chunks(files_text)
     vectorestore = get_vectorstore(text_chunks, embeddings)
     sparse_retriever = get_sparse_retriever(text_chunks)
-    # multiquery_retriever = get_multiquery_retriever(vectorestore)
-    ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
-    chain = get_conversation_chain(vectorestore.as_retriever())
+    multiquery_retriever = get_multiquery_retriever(vectorestore)
+    # ensemble_retriever = get_ensemble_retriever(sparse_retriever, vectorestore.as_retriever())
+    chain = get_conversation_chain(multiquery_retriever)
+    # chain = PromptTemplate.from_template(template) | llm | StrOutputParser()
+    # result = chain.invoke({"question": inputs["question"]})
+    # return {"answer": result}
     result = chain({"question": inputs["question"]})
     return {"answer": result["answer"]}
 
@@ -255,10 +305,6 @@ def get_text():
 
 
 def get_conversation_chain(retriever):
-    # if model_id == "google/gemma-3-1b-it":
-    #     llm = get_model()
-    # else:
-    #     llm = ChatOpenAI(model=model_id, api_key=st.secrets["OPENAI_KEY"], temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
@@ -281,7 +327,9 @@ experiment_results = client.evaluate(
         rouge_evaluator(metric="rougeL"),
         bleu_evaluator,
         meteor_evaluator,
+        correctness_evaluator,
+        helpfulness_evaluator
     ],
-    experiment_prefix=f"{model_id} + retriever + Heuristic",
+    experiment_prefix=f"{model_id} + multi-query retriever",
     max_concurrency=2,
 )

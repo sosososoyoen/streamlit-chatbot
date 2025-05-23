@@ -4,7 +4,7 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="11">
+          <list size="21">
             <item index="0" class="java.lang.String" itemvalue="langchain_chroma" />
             <item index="1" class="java.lang.String" itemvalue="langchain_huggingface" />
             <item index="2" class="java.lang.String" itemvalue="langchain" />
@@ -16,6 +16,16 @@
             <item index="8" class="java.lang.String" itemvalue="pysqlite3_binary" />
             <item index="9" class="java.lang.String" itemvalue="pysqlite_binary" />
             <item index="10" class="java.lang.String" itemvalue="streamlit_pdf_viewer" />
+            <item index="11" class="java.lang.String" itemvalue="openai" />
+            <item index="12" class="java.lang.String" itemvalue="pydantic" />
+            <item index="13" class="java.lang.String" itemvalue="sentence_transformers" />
+            <item index="14" class="java.lang.String" itemvalue="langchain_teddynote" />
+            <item index="15" class="java.lang.String" itemvalue="peft" />
+            <item index="16" class="java.lang.String" itemvalue="wandb" />
+            <item index="17" class="java.lang.String" itemvalue="datasets" />
+            <item index="18" class="java.lang.String" itemvalue="langsmith" />
+            <item index="19" class="java.lang.String" itemvalue="trl" />
+            <item index="20" class="java.lang.String" itemvalue="bert_score" />
           </list>
         </value>
       </option>
