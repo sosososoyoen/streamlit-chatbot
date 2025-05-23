@@ -1,6 +1,8 @@
 import logging
+
 __import__('pysqlite3')
 import sys
+
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
 import streamlit as st
@@ -31,7 +33,6 @@ os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
 os.environ["LANGSMITH_API_KEY"] = st.secrets["LANGSMITH_API_KEY"]
 os.environ["LANGSMITH_PROJECT"] = st.secrets["LANGSMITH_PROJECT"]
 
-
 store = InMemoryByteStore()
 template = """
       You are an assistant for question-answering tasks. 
@@ -57,7 +58,6 @@ template = """
 def main():
     st.title("🐬 PDF QnA Bot")
     model = st.selectbox("Select GPT Model", ("gpt-4o-mini", "gpt-4.1-nano"))
-
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
@@ -140,7 +140,6 @@ def main():
                     {"role": "assistant", "content": response, "source_documents": source_documents})
 
 
-
 def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
@@ -188,8 +187,7 @@ def get_text_chunks(text):
 def get_vectorstore(text_chunks, embedder):
     client = chromadb.Client()
     client.clear_system_cache()
-    persist_directory = "./chroma_db"
-    vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory,
+    vectorestore = Chroma.from_documents(text_chunks, embedder, client=client,
                                          collection_name="pdf_docs")
     return vectorestore
 
