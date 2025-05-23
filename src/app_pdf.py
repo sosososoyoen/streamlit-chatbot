@@ -4,8 +4,6 @@ import sys
 import chromadb
 import streamlit as st
 import tiktoken
-import torch
-from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.memory import ConversationBufferMemory
@@ -21,16 +19,19 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFacePipeline
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from loguru import logger
+import os
 
 __import__('pysqlite3')
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
-load_dotenv()
+os.environ["LANGSMITH_TRACING"] = st.secrets["LANGSMITH_TRACING"]
+os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
+os.environ["LANGSMITH_API_KEY"] = st.secrets["LANGSMITH_API_KEY"]
+os.environ["LANGSMITH_PROJECT"] = st.secrets["LANGSMITH_PROJECT"]
 
 chromadb.api.client.SharedSystemClient.clear_system_cache()
 store = InMemoryByteStore()
@@ -140,20 +141,6 @@ def main():
                 st.session_state.messages.append(
                     {"role": "assistant", "content": response, "source_documents": source_documents})
 
-
-@st.cache_resource
-def get_model():
-    device = 0 if torch.cuda.is_available() else -1
-    print(f"Using device: {'GPU' if device == 0 else 'CPU'}")
-    return HuggingFacePipeline.from_model_id(
-        model_id="google/gemma-3-1b-it",
-        task="text-generation",
-        device=device,
-        pipeline_kwargs={
-            "max_new_tokens": 256,  # 최대 256개의 token 생성
-            "do_sample": False  # deterministic하게 답변 결정
-        }
-    )
 
 
 def tiktoken_len(text):
