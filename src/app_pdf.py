@@ -4,6 +4,7 @@ __import__('pysqlite3')
 import sys
 
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+sys.setdefaultencoding('utf8')
 import chromadb
 import streamlit as st
 import tiktoken
@@ -187,7 +188,8 @@ def get_text_chunks(text):
 def get_vectorstore(text_chunks, embedder):
     client = chromadb.Client()
     client.clear_system_cache()
-    vectorestore = Chroma.from_documents(text_chunks, embedder, client=client,
+    persist_directory = "./chroma_db"
+    vectorestore = Chroma.from_documents(text_chunks, embedder, persist_directory=persist_directory,
                                          collection_name="pdf_docs")
     return vectorestore
 
